@@ -3,7 +3,10 @@
   "version": "1.0.0",
   "description": "World Flipper Bot",
   "main": "bot.js",
-  "author": "Araetha",
+  "author": "hanshino",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "axios": "^0.21.3",
     "canvas": "^2.8.0",

@@ -2,7 +2,7 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
-const listenport = process.env.PORT || 8888;
+const listenport = process.env.PORT || 3000;
 var cookieParser = require("cookie-parser");
 const i18next = require("i18next");
 const i18nextMiddleware = require("i18next-express-middleware");
