@@ -2,7 +2,11 @@
 require("dotenv").config();
 const express = require("express");
 const app = express();
+const version = "0.1";
 const listenport = process.env.PORT || 3000;
+const http = require("http");
+const server = http.Server(app);
+const io = require("socket.io")(server);
 var cookieParser = require("cookie-parser");
 const i18next = require("i18next");
 const i18nextMiddleware = require("i18next-express-middleware");
@@ -17,11 +21,7 @@ app.use(
 );
 app.set("view engine", "ejs");
 app.use(express.json()); // support json encoded bodies
-app.use(
-  express.urlencoded({
-    extended: true,
-  })
-);
+app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 i18next
   .use(i18nextMiddleware.LanguageDetector)
@@ -40,7 +40,10 @@ i18next
   });
 app.use(i18nextMiddleware.handle(i18next));
 const viewFolder = path.join(__dirname, "./views/");
-
+const DB = require("./data");
+var data = DB.getData("en");
+var dataja = DB.getData("ja");
+var datazhtw = DB.getData("zh-TW");
 app.get("/", function (req, res) {
   res.render(viewFolder + "index.ejs", {
     title: "hanshino",
@@ -88,7 +91,7 @@ app.get("/comp/:w", function (req, res) {
   }
   const units = url.split("-");
   var count = 0;
-  loadImage("./public/img/party_full" + lang + ".png").then((bg) => {
+  loadImage("./public/img/party_full" + lang + ".png").then(bg => {
     ctx.drawImage(bg, 0, 0, 480, 205);
     for (i = 0; i < units.length; i++) {
       var imageUrl = "";
@@ -98,11 +101,10 @@ app.get("/comp/:w", function (req, res) {
         if (i % 2 == 0) {
           imageUrl = "./public/img/assets/item/equipment/" + units[i] + ".png";
         } else {
-          imageUrl =
-            "./public/img/assets/item/equipment/" + units[i] + "_soul.png";
+          imageUrl = "./public/img/assets/item/equipment/" + units[i] + "_soul.png";
         }
       }
-      loadImage(imageUrl).then((image) => {
+      loadImage(imageUrl).then(image => {
         var width = 82;
         var x, y;
         switch (count) {
@@ -152,5 +154,46 @@ app.get("/comp/:w", function (req, res) {
     }
   });
 });
+app.post("/update", async (req, res) => {
+  data = DB.getData("en");
+  dataja = DB.getData("ja");
+  datazhtw = DB.getData("zh-TW");
+  res.send("webapp updated!");
+});
 
-app.listen(listenport);
+io.on("connection", function (socket) {
+  socket.on("connected", function (lang) {
+    switch (lang) {
+      case "ja":
+        io.to(socket.id).emit("equips", dataja.equips);
+        io.to(socket.id).emit("chars", dataja.chars);
+        break;
+      case "zh-TW":
+        io.to(socket.id).emit("equips", datazhtw.equips);
+        io.to(socket.id).emit("chars", datazhtw.chars);
+        break;
+      default:
+        io.to(socket.id).emit("equips", data.equips);
+        io.to(socket.id).emit("chars", data.chars);
+    }
+  });
+  socket.on("connected-title", function (lang) {
+    switch (lang) {
+      case "ja":
+        io.to(socket.id).emit("titles", dataja.titles);
+        break;
+      case "zh-TW":
+        io.to(socket.id).emit("titles", datazhtw.titles);
+        break;
+      default:
+        io.to(socket.id).emit("titles", data.titles);
+    }
+  });
+
+  socket.on("add url", function (list) {});
+  socket.on("get url", function (id) {});
+});
+
+server.listen(listenport, function () {
+  console.log("伺服器已啟動!");
+});
