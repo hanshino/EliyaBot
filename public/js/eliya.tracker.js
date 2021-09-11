@@ -1,10 +1,4 @@
 $(document).ready(function () {
-  var clientid;
-  var isIOS = /iphone|ipad/gi.test(navigator.appVersion);
-  var inputDown = isIOS ? "touchstart" : "touchstart mousedown";
-  var inputUp = isIOS ? "touchend" : "touchend mouseup";
-  var w_width = $(window).width();
-  var w_height = $(window).height();
   const assetPath = "/img/assets/";
   var socket = io();
   var charLoaded = false;
@@ -14,7 +8,6 @@ $(document).ready(function () {
   if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
     $("body").addClass("darktheme");
   }
-  function clearUI() {}
   socket.emit("connected", lang);
   function resizeCheck() {
     w_width = $(window).width();
@@ -158,7 +151,7 @@ $(document).ready(function () {
             if (lang != "en") {
               if (key == "Race") {
                 var races = unit.Race.split(" / ");
-                var tls = [];
+                let tls = [];
                 for (i = 0; i < races.length; i++) {
                   tls.push(getTls("Race" + races[i]));
                 }
@@ -259,6 +252,7 @@ $(document).ready(function () {
     if (!equipLoaded) {
       $("#equips .equipList").html("");
       data.forEach(function (unit) {
+        if (!unit.DevNicknames) return;
         var elem = $(
           '<li id="equip-' +
             unit.DevNicknames +
