@@ -1,0 +1,22 @@
+version: "3.5"
+services:
+  flipper_web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file: ./.env
+    restart: always
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.${PROJECT_NAME}_frontend-secure.rule=Host(`${APP_DOMAIN}`)"
+      - "traefik.http.routers.${PROJECT_NAME}_frontend-secure.entrypoints=websecure"
+      - "traefik.http.routers.${PROJECT_NAME}_frontend-secure.tls=true"
+      - "traefik.http.routers.${PROJECT_NAME}_frontend-secure.tls.certresolver=leresolver"
+      - "traefik.docker.network=traefik"
+
+networks:
+  traefik:
+    external: true
+    name: traefik
