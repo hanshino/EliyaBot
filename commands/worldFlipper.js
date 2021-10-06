@@ -4,6 +4,8 @@ const Discord = require('discord.js');
 const DB = require('../data')
 var data = DB.getData();
 const moment = require('moment-timezone');
+const { URL } = require('url');
+const { Client } = require('pg');
 const assetPath = 'http://eliya-bot.herokuapp.com/img/assets/';
 const group = path.parse(__filename).name;
 const reactionExpiry = 30000;
@@ -13,14 +15,25 @@ const weaponReaction = '⚔️';
 const soulReaction = '📀';
 const numberReactions = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 const prefix = process.env.PREFIX || '!!';
+const DUNGEONS = process.env.DUNGEONS.split(",");
+const RIGHT = '➡️';
+const LEFT = '⬅️';
+
+const catchErr = err => {
+  console.log(err)
+}
 
 const getInfoEmbed = (unit, flag) => {
+  var devNicknames = "";
   var footer = unit.Stance + ' - ' + unit.Role + ' - ' + unit.Gender + ' - ' + unit.Race;
+  if (unit.DevNicknames){
+    devNicknames=unit.DevNicknames;
+  }
   const rarity = Array(parseInt(unit.Rarity, 10)).fill(':star:').join('');
   if (unit.Obtain) {
     footer = footer + ' - ' + unit.Obtain;
   }
-  footer += '           ' + unit.DevNicknames + '       JP' + (unit.InGlobal?' GL':'') + (unit.InTaiwan?' TW':'')
+  footer += '           ' + devNicknames + '       JP' + (unit.InGlobal?' GL':'') + (unit.InTaiwan?' TW':'')
   var msg = new Discord.MessageEmbed()
     .setTitle(unit.ENName + ' ' + unit.JPName)
     .setDescription((unit.AlsoKnownAs?'**Also Known As: **'+unit.AlsoKnownAs+'\n':'')+
@@ -38,61 +51,84 @@ const getInfoEmbed = (unit, flag) => {
       .addField('Ability 5', unit.Ability5, true)
       .addField('Ability 6', unit.Ability6, true)
   }
-  if (flag == 'awaken') {
-    msg.setThumbnail(assetPath + 'chars/' + unit.DevNicknames + '/square_1.png')
-  } else {
-    msg.setThumbnail(assetPath + 'chars/' + unit.DevNicknames + '/square_0.png')
+  if (unit.DevNicknames){
+    if (flag == 'awaken') {
+      msg.setThumbnail(assetPath + 'chars/' + devNicknames + '/square_1.png')
+    } else {
+      msg.setThumbnail(assetPath + 'chars/' + devNicknames + '/square_0.png')
+    }
   }
   return msg;
 };
 
 const getEquipEmbed = (unit, flag) => {
+  var devNicknames = "";
+  if (unit.DevNicknames){
+    devNicknames=unit.DevNicknames;
+  }  
   const rarity = Array(parseInt(unit.Rarity, 10)).fill(':star:').join('');
   var msg = new Discord.MessageEmbed()
     .setTitle(unit.ENName + ' ' + unit.JPName)
     .addField('Obtain', unit.Obtain, true)
-    .setFooter(unit.DevNicknames);
+    .setFooter(devNicknames);
   if (flag == 'soul') {
     msg.setDescription('**Attribute: **' + unit.Attribute
       + '\n**Rarity: **' + rarity
-      + '\n**Ability Soul: **' + unit.AbilitySoul)
-    msg.setThumbnail(assetPath + 'item/equipment/' + unit.DevNicknames + '_soul.png')
+      + '\n**Ability Soul: **' + unit.AbilitySoul);
+    if (unit.DevNicknames){
+      msg.setThumbnail(assetPath + 'item/equipment/' + devNicknames + '_soul.png')
+    }
   } else {
     msg.setDescription('**Attribute: **' + unit.Attribute
       + '\n**Rarity: **' + rarity
       + '\n**HP: **' + unit.MaxHP + '　　**ATK: **' + unit.MaxATK
       + '\n**Weapon Skill: **' + unit.WeaponSkill
       + '\n**Awaken Lv3: **' + unit.AwakenLv3
-      + '\n**Awaken Lv5: **' + unit.AwakenLv5)      
-    msg.setThumbnail(assetPath + 'item/equipment/' + unit.DevNicknames + '.png')
+      + '\n**Awaken Lv5: **' + unit.AwakenLv5);
+    if (unit.DevNicknames){
+      msg.setThumbnail(assetPath + 'item/equipment/' + devNicknames + '.png')
+    }
   }
   return msg;
 };
 
+
 const getThumbnailEmbed = (unit, flag) => {
+  var devNicknames = "";
+  if (unit.DevNicknames){
+    devNicknames=unit.DevNicknames;
+  }    
   const rarity = Array(parseInt(unit.Rarity, 10)).fill(':star:').join('');
   var msg = new Discord.MessageEmbed()
     .setTitle(unit.ENName + ' ' + unit.JPName)
     .setDescription((unit.AlsoKnownAs?'**Also Known As: **'+unit.AlsoKnownAs+'\n':'')+'**Attribute: **' + unit.Attribute
       + '\n**Rarity: **' + rarity)
-    .setThumbnail(assetPath + 'chars/' + unit.DevNicknames + '/square_0.png')
-    .setFooter(unit.DevNicknames);
-  if (flag == 'awaken') {
-    msg.setThumbnail(assetPath + 'chars/' + unit.DevNicknames + '/square_1.png')
-  } else {
-    msg.setThumbnail(assetPath + 'chars/' + unit.DevNicknames + '/square_0.png')
+    .setThumbnail(assetPath + 'chars/' + devNicknames + '/square_0.png')
+    .setFooter(devNicknames);
+  if (unit.DevNicknames){    
+    if (flag == 'awaken') {
+      msg.setThumbnail(assetPath + 'chars/' + devNicknames + '/square_1.png')
+    } else {
+      msg.setThumbnail(assetPath + 'chars/' + devNicknames + '/square_0.png')
+    }
+    return msg;
   }
-  return msg;
 };
 
 const getArtEmbed = (unit, flag) => {
+  var devNicknames = "";
+  if (unit.DevNicknames){
+    devNicknames=unit.DevNicknames;
+  }      
   var msg = new Discord.MessageEmbed()
     .setTitle(unit.ENName + ' ' + unit.JPName)
-    .setFooter(unit.DevNicknames);
-  if (flag == 'awaken') {
-    msg.setImage(assetPath + 'chars/' + unit.DevNicknames + '/full_shot_1.png')
-  } else {
-    msg.setImage(assetPath + 'chars/' + unit.DevNicknames + '/full_shot_0.png')
+    .setFooter(devNicknames);
+  if (unit.DevNicknames){        
+    if (flag == 'awaken') {
+      msg.setImage(assetPath + 'chars/' + devNicknames + '/full_shot_1.png')
+    } else {
+      msg.setImage(assetPath + 'chars/' + devNicknames + '/full_shot_0.png')
+    }
   }
   return msg;
 
@@ -104,23 +140,6 @@ const getTitleEmbed = (unit) => {
   msg.setImage(assetPath + 'titles/' + unit.DevNicknames + '.png')
   return msg;
 
-};
-
-const getAnimationEmbed = unit => {
-  var msg = new Discord.MessageEmbed()
-    .setTitle(unit.ENName + ' ' + unit.JPName)
-    .setImage(assetPath + 'chars/' + unit.DevNicknames + '/front.gif')
-    .setFooter(unit.DevNicknames);
-  return msg;
-
-};
-
-const getSpecialEmbed = unit => {
-  var msg = new Discord.MessageEmbed()
-    .setTitle(unit.ENName + ' ' + unit.JPName)
-    .setImage(assetPath + 'chars/' + unit.DevNicknames + '/special.gif')
-    .setFooter(unit.DevNicknames);
-  return msg;
 };
 
 const getShortENName = longName => {
@@ -161,7 +180,7 @@ const appendReacts = async (units, message, type, msg, max=10) => {
   let num = units.length;
   if (units.length > max) num = max;
   for (let i = 0; i < num; i++) {
-    await msg.react(numberReactions[i]);
+    await msg.react(numberReactions[i]).catch(catchErr);
   }
   const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
   collector.on('collect', r => {
@@ -187,11 +206,11 @@ const appendReacts = async (units, message, type, msg, max=10) => {
             sendTitle(units[i], message);
             break;
         }
-        msg.reactions.removeAll();
+        msg.reactions.removeAll().catch(catchErr);
       }
     }
   });
-  collector.on('end', collected => msg.reactions.removeAll());
+  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
 }
 
 const sendMessage = async (unit, message) => {
@@ -199,19 +218,18 @@ const sendMessage = async (unit, message) => {
     return [normalReaction, awakenReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
   const msg = await message.channel.send({embeds:[getInfoEmbed(unit, 'normal')]});
-  await msg.react(normalReaction);
-  await msg.react(awakenReaction);
+  await msg.react(normalReaction).catch(catchErr);
+  await msg.react(awakenReaction).catch(catchErr);
   const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
   collector.on('collect', r => {
-    console.log("here");
     if (r.emoji.name === normalReaction) {
-      msg.edit(getInfoEmbed(unit, 'normal'));
+      msg.edit({embeds:[getInfoEmbed(unit, 'normal')]});
     }
     if (r.emoji.name === awakenReaction) {
-      msg.edit(getInfoEmbed(unit, 'awaken'));
+      msg.edit({embeds:[getInfoEmbed(unit, 'awaken')]});
     }
   });
-  collector.on('end', collected => msg.reactions.removeAll());
+  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
 };
 
 const sendEquip = async (unit, message) => {
@@ -219,18 +237,18 @@ const sendEquip = async (unit, message) => {
     return [weaponReaction, soulReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
   const msg = await message.channel.send({embeds:[getEquipEmbed(unit, 'icon')]});
-  await msg.react(weaponReaction);
-  await msg.react(soulReaction);
+  await msg.react(weaponReaction).catch(catchErr);
+  await msg.react(soulReaction).catch(catchErr);
   const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
   collector.on('collect', r => {
     if (r.emoji.name === weaponReaction) {
-      msg.edit(getEquipEmbed(unit, 'icon'));
+      msg.edit({embeds:[getEquipEmbed(unit, 'icon')]});
     }
     if (r.emoji.name === soulReaction) {
-      msg.edit(getEquipEmbed(unit, 'soul'));
+      msg.edit({embeds:[getEquipEmbed(unit, 'soul')]});
     }
   });
-  collector.on('end', collected => msg.reactions.removeAll());
+  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
 };
 
 const sendThumbnail = async (unit, message) => {
@@ -238,18 +256,18 @@ const sendThumbnail = async (unit, message) => {
     return [normalReaction, awakenReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
   const msg = await message.channel.send({embeds:[getThumbnailEmbed(unit, 'normal')]});
-  await msg.react(normalReaction);
-  await msg.react(awakenReaction);
+  await msg.react(normalReaction).catch(catchErr);
+  await msg.react(awakenReaction).catch(catchErr);
   const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
   collector.on('collect', r => {
     if (r.emoji.name === normalReaction) {
-      msg.edit(getThumbnailEmbed(unit, 'normal'));
+      msg.edit({embeds:[getThumbnailEmbed(unit, 'normal')]});
     }
     if (r.emoji.name === awakenReaction) {
-      msg.edit(getThumbnailEmbed(unit, 'awaken'));
+      msg.edit({embeds:[getThumbnailEmbed(unit, 'awaken')]});
     }
   });
-  collector.on('end', collected => msg.reactions.removeAll());
+  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
 };
 
 const sendArt = async (unit, message) => {
@@ -257,18 +275,18 @@ const sendArt = async (unit, message) => {
     return [normalReaction, awakenReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
   const msg = await message.channel.send({embeds:[getArtEmbed(unit, 'normal')]});
-  await msg.react(normalReaction);
-  await msg.react(awakenReaction);
+  await msg.react(normalReaction).catch(catchErr);
+  await msg.react(awakenReaction).catch(catchErr);
   const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
   collector.on('collect', r => {
     if (r.emoji.name === normalReaction) {
-      msg.edit(getArtEmbed(unit, 'normal'));
+      msg.edit({embeds:[getArtEmbed(unit, 'normal')]});
     }
     if (r.emoji.name === awakenReaction) {
-      msg.edit(getArtEmbed(unit, 'awaken'));
+      msg.edit({embeds:[getArtEmbed(unit, 'awaken')]});
     }
   });
-  collector.on('end', collected => msg.reactions.removeAll());
+  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
 };
 
 const sendAlt = async (unit, message) => {
@@ -276,18 +294,18 @@ const sendAlt = async (unit, message) => {
     return [normalReaction, awakenReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
   const msg = await message.channel.send({embeds:[getArtEmbed(unit, 'awaken')]});
-  await msg.react(normalReaction);
-  await msg.react(awakenReaction);
+  await msg.react(normalReaction).catch(catchErr);
+  await msg.react(awakenReaction).catch(catchErr);
   const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
   collector.on('collect', r => {
     if (r.emoji.name === normalReaction) {
-      msg.edit(getArtEmbed(unit, 'normal'));
+      msg.edit({embeds:[getArtEmbed(unit, 'normal')]});
     }
     if (r.emoji.name === awakenReaction) {
-      msg.edit(getArtEmbed(unit, 'awaken'));
+      msg.edit({embeds:[getArtEmbed(unit, 'awaken')]});
     }
   });
-  collector.on('end', collected => msg.reactions.removeAll());
+  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
 };
 
 const sendTitle = async (unit, message) => {
@@ -612,14 +630,18 @@ function getTimeUntil(diff) {
   const hours = Math.floor(diff / 1000 / 60 / 60 - (days * 24));
   const minutes = Math.floor(diff / 1000 / 60 % 60);
   var timeUntil = '';
-  if (days > 0) {
-    timeUntil += days + 'd';
-  }
-  if (hours > 0 || days > 0) {
-    timeUntil += hours + 'h';
-  }
-  if (minutes > 0 || hours > 0 || days > 0) {
-    timeUntil += minutes + 'm';
+  if (days > 100){
+    timeUntil = 'Unspecified'
+  }else{
+    if (days > 0) {
+      timeUntil += days + 'd';
+    }
+    if (hours > 0 || days > 0) {
+      timeUntil += hours + 'h';
+    }
+    if (minutes > 0 || hours > 0 || days > 0) {
+      timeUntil += minutes + 'm';
+    }
   }
   return timeUntil;
 }
@@ -644,11 +666,11 @@ const event = {
         if (aLength < 0) {
           aLength = 0
         }
-        ;
+        
         if (start.isBefore(now)) {
           timeUntil = getTimeUntil(end.format("x") - now.format("x"));
           if (event.Type != "Banner") {
-            ongoingList += event.ENName + '\n+ End : ' + event.End + ' (' + timeUntil + ")\n";
+            ongoingList += event.ENName + '\n+ End : ' + ((event.End!=='2099-12-31')?event.End:'') + ' (' + timeUntil + ")\n";
           }
         } else {
           timeUntil = getTimeUntil(start.format("x") - now.format("x"));
@@ -671,7 +693,7 @@ const event = {
       msg.addFields({name: "Upcoming Events", value: "```diff\nNo upcoming event```"})
     }
 
-    return message.channel.send(msg);
+    return message.channel.send({embeds:[msg]});
   },
 };
 const gacha = {
@@ -694,11 +716,11 @@ const gacha = {
         if (aLength < 0) {
           aLength = 0
         }
-        ;
+        
         if (start.isBefore(now)) {
           timeUntil = getTimeUntil(end.format("x") - now.format("x"));
           if (event.Type == "Banner") {
-            ongoingBannerList += event.ENName + '\n+ End : ' + event.End + ' (' + timeUntil + ")\n";
+            ongoingBannerList += event.ENName + '\n+ End : ' + ((event.End!=='2099-12-31')?event.End:'') + ' (' + timeUntil + ")\n";
           }
         } else {
           timeUntil = getTimeUntil(start.format("x") - now.format("x"));
@@ -721,7 +743,7 @@ const gacha = {
       msg.addFields({name: "Upcoming Banners", value: "```diff\nNo upcoming pick-up banner```"})
     }
 
-    return message.channel.send(msg);
+    return message.channel.send({embeds:[msg]});
   },
 };
 const tracker = {
@@ -1013,6 +1035,259 @@ const filterCharacter = {
   },
 };
 
+async function DBOperation(operation) {
+  const client = new Client({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+      rejectUnauthorized: false
+    }
+  });
+
+  await client.connect();
+
+  try {
+    const res = await client.query(operation)
+    await client.end()
+    return res;
+  } catch (err) {
+    await client.end()
+    console.log(err.stack)
+    return null;
+  }
+}
+
+function validDungeon(name) {
+  return DUNGEONS.includes(name)
+}
+
+function setRemove(originalSet, toBeRemovedSet) {
+  toBeRemovedSet.forEach(Set.prototype.delete, originalSet);
+}
+
+const submit = {
+  name: 'submit',
+  group,
+  args: true,
+  usage: '<submit dungeon | description | team link>',
+  aliases: ['s'],
+  description: 'Submits a team to be viewed',
+  async execute(message, args) {
+
+    if (!process.env.DATABASE_URL) {
+      return message.channel.send('Missing database for team data. The schema is provided in the repo ');
+    }
+
+    const desc = args.length == 3 ? args[1] : "No description";
+
+    if (args.length < 2) {
+      return message.channel.send('Entry too short please have a minimum of dungeon name and team link!');
+    }
+    if (args.length > 3) {
+      return message.channel.send('Entry too long! Did you forget to wrap the description in quotes?');
+    }
+
+    // random url validator regex 
+    ValidateURI = /^(?:(?:https?|ftp):\/\/)?(?:(?!(?:10|127)(?:\.\d{1,3}){3})(?!(?:169\.254|192\.168)(?:\.\d{1,3}){2})(?!172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2})(?:[1-9]\d?|1\d\d|2[01]\d|22[0-3])(?:\.(?:1?\d{1,2}|2[0-4]\d|25[0-5])){2}(?:\.(?:[1-9]\d?|1\d\d|2[0-4]\d|25[0-4]))|(?:(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)(?:\.(?:[a-z\u00a1-\uffff0-9]-*)*[a-z\u00a1-\uffff0-9]+)*(?:\.(?:[a-z\u00a1-\uffff]{2,})))(?::\d{2,5})?(?:\/\S*)?$/;
+    const URI = args.length == 3 ? args[2] : args[1]
+    const url = ValidateURI.test(URI) ? new URL(URI) : null
+    if (url == null) {
+      return message.channel.send('Invalid Image URL');
+    }
+    if (url.host != 'eliya-bot.herokuapp.com' && url.host != 'veliya-bot.herokuapp.com') {
+      return message.channel.send('Invalid Image URL');
+    }
+
+    if (!validDungeon(args[0].toLowerCase())) {
+      return message.channel.send('Invalid Dungeon. Valid options are: ' + DUNGEONS.toString() + ' case insensitive');
+    }
+
+    const components = url.pathname.slice(6).split("-")
+    // Unit Validation
+    for (let i = 0; i < 6; i++) {
+      let character = searchCharByName(components[i])
+      if (character.length == 0 && components[i] != "blank") {
+        return message.channel.send('Invalid unit: ' + components[i]);
+      }
+    }
+    components[11] = components[11].split('.')[0]
+    // Weapon Validation
+    for (let i = 6; i < 12; i++) {
+      let character = searchEquipByName(components[i])
+      if (character.length == 0 && components[i] != "blank") {
+        return message.channel.send('Invalid equipment: ' + components[i]);
+      }
+    }
+
+    const queryString = `INSERT INTO TEAMS (dungeon, url, cards, unison, weapons, souls, creator, description) VALUES (\'${args[0].toLowerCase()}\',
+    \'${URI}\',
+    \'{${components[0]},${components[2]},${components[4]}}\', 
+    \'{${components[1]},${components[3]},${components[5]}}\', 
+    \'{${components[6]},${components[7]},${components[8]}}\', 
+    \'{${components[9]},${components[10]},${components[11]}}\',${message.author.id}, '${desc}');`
+    const res = await DBOperation(queryString)
+    if (!res) {
+      return message.channel.send('Team already exists for dungeon')
+    }
+
+    return message.channel.send('Team was submitted');
+  },
+};
+
+const team = {
+  name: 'team',
+  group,
+  args: true,
+  usage: '<team dungeon>',
+  aliases: ['te'],
+  description: 'Pulls up submitted teams for a dungeon',
+  async execute(message, args) {
+
+    if (!process.env.DATABASE_URL) {
+      return message.channel.send('Missing database for team data. The schema is provided in the repo ');
+    }
+    // For custom filters we increase the allowed length and implement custom logic
+    if (args.length != 1) {
+      return message.channel.send('Please enter just the dungeon name');
+    }
+
+    if (!validDungeon(args[0].toLowerCase())) {
+      return message.channel.send('Invalid Dungeon. Valid options are: ' + DUNGEONS.toString());
+    }
+
+    const queryString = `SELECT * FROM teams WHERE dungeon = '${args[0].toLowerCase()}' ORDER BY voter_score DESC`
+    const res = await DBOperation(queryString)
+    if (!res) {
+      return message.channel.send("No Teams Found")
+    }
+    for (let i of res.rows) {
+      mainReal = []
+      unisonReal = []
+      for (let j of i.cards) {
+        let unit = searchCharByName(j)
+        mainReal.push(j != "blank" ? unit[0].ENName.split("\n")[1] : "blank")
+      }
+      for (let j of i.unison) {
+        let unit = searchCharByName(j)
+        unisonReal.push(j != "blank" ? unit[0].ENName.split("\n")[1] : "blank")
+      }
+      i.mainReal = mainReal
+      i.unisonReal = unisonReal
+    }
+
+    const msg = await message.channel.send({ embeds: [getTeamListEmbed(res.rows, 0)] });
+    await EditTeamList(res.rows, message.author.id, 0, msg);
+  },
+};
+
+
+const sendTeam = async (team, msg) => {
+  var final = new Discord.MessageEmbed()
+    .setImage(team.url)
+    .setDescription(team.description)
+    .setTitle(team.dungeon)
+    .setFooter(`Voter score: ${team.voter_score}`);
+
+  msg.edit({ embeds: [final] })
+  await msg.react("👍")
+  await msg.react("👎")
+  const voters = team.voters == null ? new Set() : new Set(team.voters)
+
+  const filter = (reaction, user) => {
+    return ["👍", "👎"].includes(reaction.emoji.name) && !voters.has(user.id);
+  };
+
+  const upvote = new Set()
+  const downvote = new Set()
+  const collector = msg.createReactionCollector({ filter, time: reactionExpiry });
+
+  collector.on('collect', (r, user) => {
+    if (r.emoji.name == "👍") {
+      upvote.add(user.id)
+    } else {
+      downvote.add(user.id)
+    }
+  });
+
+// Everyone who hasn't previously voted will have their votes applied
+  collector.on('end', () => {
+    setRemove(upvote, voters)
+    setRemove(downvote, voters)
+    const score = team.voter_score + upvote.size - downvote.size
+    const newVoters = new Set([...upvote, ...downvote, ...voters])
+    const queryString = `UPDATE teams set  voters= '{${Array.from(newVoters)}}', voter_score = ${score} where id = '${team.id}'`
+    msg.reactions.removeAll()
+    // This may potentially fail? Only result would be the votes not getting counted
+    DBOperation(queryString)
+  });
+};
+
+// Can send filtered search here 
+const getTeamListEmbed = (datum, current) => {
+  var msg = new Discord.MessageEmbed()
+    .setTitle('Results Page ' + (current / 5 + 1))
+  for (let i = 0 + current; i <= datum.length - 1 && i < 5 + current; i++) {
+    msg.addField(i + 1 - current + ": " + datum[i].mainReal[0] + " " + datum[i].mainReal[1] + " " + datum[i].mainReal[2],
+      datum[i].unisonReal[0] + " " + datum[i].unisonReal[1] + " " + datum[i].unisonReal[2] + " ")
+  }
+  return msg;
+};
+
+
+const EditTeamList = async (datum, message, current, msg) => {
+// Build array of valid reactions for the menu
+  let validReactions = []
+    for (let i = 0; i <= datum.length - (current+1) && i < 5; i++) {
+      validReactions.push(numberReactions[i]);
+    }
+
+
+  if (current > 0) {
+    validReactions.push(LEFT)
+  }
+  if (datum.length - current > 5) {
+    validReactions.push(RIGHT)
+  }
+
+  const filter = (reaction, user) => {
+    return validReactions.includes(reaction.emoji.name) && user.id === message;
+  };
+  msg.edit({ embeds: [getTeamListEmbed(datum, current)] })
+
+
+  for (let i = 0; i < validReactions.length; i++) {
+    await msg.react(validReactions[i]);
+  }
+
+  // Timeout detection for removing emotes
+  let acted = false
+  // Single use collector for caller
+  const collector = msg.createReactionCollector({ filter, time: reactionExpiry, max: 1 });
+  collector.on('collect', r => {
+    acted = true
+    if (r.emoji.name === RIGHT) {
+      msg.reactions.removeAll();
+      EditTeamList(datum, message, current + 5, msg)
+    }
+    if (r.emoji.name === LEFT) {
+      msg.reactions.removeAll();
+      EditTeamList(datum, message, current - 5, msg)
+    }
+    const num = datum.length < 5 ? datum.length : 5
+    for (let i = 0; i < num; i++) {
+      if (r.emoji.name === numberReactions[i]) {
+        msg.reactions.removeAll();
+        sendTeam(datum[i + current], msg)
+      }
+    }
+  });
+
+  collector.on('end', () => {
+    if (!acted) {
+      msg.reactions.removeAll()
+    }
+  });
+
+};
 
 module.exports = [guide, tls, tracker, event, gacha, character, equipment,
-  race, whois, art, alt, title, update, filterCharacter];
+  race, whois, art, alt, update, filterCharacter, submit, team];
