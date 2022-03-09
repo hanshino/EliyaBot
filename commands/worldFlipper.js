@@ -23,6 +23,11 @@ const catchErr = err => {
   console.log(err)
 }
 
+const checkData = () =>{
+  if (data.chars) return true;
+  return false;
+}
+
 const getInfoEmbed = (unit, flag) => {
   var devNicknames = "";
   var footer = unit.Stance + ' - ' + unit.Role + ' - ' + unit.Gender + ' - ' + unit.Race;
@@ -33,7 +38,7 @@ const getInfoEmbed = (unit, flag) => {
   if (unit.Obtain) {
     footer = footer + ' - ' + unit.Obtain;
   }
-  footer += '           ' + devNicknames + '       JP' + (unit.InGlobal?' GL':'') + (unit.InTaiwan?' TW':'')
+  footer += '           ' + devNicknames;
   var msg = new Discord.MessageEmbed()
     .setTitle(unit.ENName + ' ' + unit.JPName)
     .setDescription((unit.AlsoKnownAs?'**Also Known As: **'+unit.AlsoKnownAs+'\n':'')+
@@ -95,16 +100,21 @@ const getEquipEmbed = (unit, flag) => {
 
 const getThumbnailEmbed = (unit, flag) => {
   var devNicknames = "";
+  var footer = unit.Stance + ' - ' + unit.Role + ' - ' + unit.Gender + ' - ' + unit.Race;
   if (unit.DevNicknames){
     devNicknames=unit.DevNicknames;
   }    
   const rarity = Array(parseInt(unit.Rarity, 10)).fill(':star:').join('');
+  if (unit.Obtain) {
+    footer = footer + ' - ' + unit.Obtain;
+  }
+  footer += '           ' + devNicknames;
   var msg = new Discord.MessageEmbed()
     .setTitle(unit.ENName + ' ' + unit.JPName)
     .setDescription((unit.AlsoKnownAs?'**Also Known As: **'+unit.AlsoKnownAs+'\n':'')+'**Attribute: **' + unit.Attribute
       + '\n**Rarity: **' + rarity)
     .setThumbnail(assetPath + 'chars/' + devNicknames + '/square_0.png')
-    .setFooter(devNicknames);
+    .setFooter(footer);
   if (unit.DevNicknames){    
     if (flag == 'awaken') {
       msg.setThumbnail(assetPath + 'chars/' + devNicknames + '/square_1.png')
@@ -163,7 +173,7 @@ const sendList = async (units, message, type) => {
 };
 
 const sendFastList = async (units, message, type) => {
-  let list = `${units.length} characters found:\`\`\`python\n`;
+  let list = `${units.length} units found:\`\`\`python\n`;
   list += units.map((char, index) => {
     let enName = getShortENName(char['ENName']);
     return `${parseInt(index, 10) + 1}: ${enName} [${char.JPName}] # ${prefix}${type} ${char.DevNicknames}`
@@ -217,95 +227,115 @@ const sendMessage = async (unit, message) => {
   const filter = (reaction, user) => {
     return [normalReaction, awakenReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
-  const msg = await message.channel.send({embeds:[getInfoEmbed(unit, 'normal')]});
-  await msg.react(normalReaction).catch(catchErr);
-  await msg.react(awakenReaction).catch(catchErr);
-  const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
-  collector.on('collect', r => {
-    if (r.emoji.name === normalReaction) {
-      msg.edit({embeds:[getInfoEmbed(unit, 'normal')]});
-    }
-    if (r.emoji.name === awakenReaction) {
-      msg.edit({embeds:[getInfoEmbed(unit, 'awaken')]});
-    }
-  });
-  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  try {      
+    const msg = await message.channel.send({embeds:[getInfoEmbed(unit, 'normal')]});
+    await msg.react(normalReaction).catch(catchErr);
+    await msg.react(awakenReaction).catch(catchErr);
+    const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
+    collector.on('collect', r => {
+      if (r.emoji.name === normalReaction) {
+        msg.edit({embeds:[getInfoEmbed(unit, 'normal')]});
+      }
+      if (r.emoji.name === awakenReaction) {
+        msg.edit({embeds:[getInfoEmbed(unit, 'awaken')]});
+      }
+    });
+    collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  } catch (error) {
+    console.log(error)
+  }       
 };
 
 const sendEquip = async (unit, message) => {
   const filter = (reaction, user) => {
     return [weaponReaction, soulReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
-  const msg = await message.channel.send({embeds:[getEquipEmbed(unit, 'icon')]});
-  await msg.react(weaponReaction).catch(catchErr);
-  await msg.react(soulReaction).catch(catchErr);
-  const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
-  collector.on('collect', r => {
-    if (r.emoji.name === weaponReaction) {
-      msg.edit({embeds:[getEquipEmbed(unit, 'icon')]});
-    }
-    if (r.emoji.name === soulReaction) {
-      msg.edit({embeds:[getEquipEmbed(unit, 'soul')]});
-    }
-  });
-  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  try {        
+    const msg = await message.channel.send({embeds:[getEquipEmbed(unit, 'icon')]});
+    await msg.react(weaponReaction).catch(catchErr);
+    await msg.react(soulReaction).catch(catchErr);
+    const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
+    collector.on('collect', r => {
+      if (r.emoji.name === weaponReaction) {
+        msg.edit({embeds:[getEquipEmbed(unit, 'icon')]});
+      }
+      if (r.emoji.name === soulReaction) {
+        msg.edit({embeds:[getEquipEmbed(unit, 'soul')]});
+      }
+    });
+    collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  } catch (error) {
+    console.log(error)
+  }       
 };
 
 const sendThumbnail = async (unit, message) => {
   const filter = (reaction, user) => {
     return [normalReaction, awakenReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
-  const msg = await message.channel.send({embeds:[getThumbnailEmbed(unit, 'normal')]});
-  await msg.react(normalReaction).catch(catchErr);
-  await msg.react(awakenReaction).catch(catchErr);
-  const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
-  collector.on('collect', r => {
-    if (r.emoji.name === normalReaction) {
-      msg.edit({embeds:[getThumbnailEmbed(unit, 'normal')]});
-    }
-    if (r.emoji.name === awakenReaction) {
-      msg.edit({embeds:[getThumbnailEmbed(unit, 'awaken')]});
-    }
-  });
-  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  try {       
+    const msg = await message.channel.send({embeds:[getThumbnailEmbed(unit, 'normal')]});
+    await msg.react(normalReaction).catch(catchErr);
+    await msg.react(awakenReaction).catch(catchErr);
+    const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
+    collector.on('collect', r => {
+      if (r.emoji.name === normalReaction) {
+        msg.edit({embeds:[getThumbnailEmbed(unit, 'normal')]});
+      }
+      if (r.emoji.name === awakenReaction) {
+        msg.edit({embeds:[getThumbnailEmbed(unit, 'awaken')]});
+      }
+    });
+    collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  } catch (error) {
+    console.log(error)
+  }     
 };
 
 const sendArt = async (unit, message) => {
   const filter = (reaction, user) => {
     return [normalReaction, awakenReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
-  const msg = await message.channel.send({embeds:[getArtEmbed(unit, 'normal')]});
-  await msg.react(normalReaction).catch(catchErr);
-  await msg.react(awakenReaction).catch(catchErr);
-  const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
-  collector.on('collect', r => {
-    if (r.emoji.name === normalReaction) {
-      msg.edit({embeds:[getArtEmbed(unit, 'normal')]});
-    }
-    if (r.emoji.name === awakenReaction) {
-      msg.edit({embeds:[getArtEmbed(unit, 'awaken')]});
-    }
-  });
-  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  try {       
+    const msg = await message.channel.send({embeds:[getArtEmbed(unit, 'normal')]});
+    await msg.react(normalReaction).catch(catchErr);
+    await msg.react(awakenReaction).catch(catchErr);
+    const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
+    collector.on('collect', r => {
+      if (r.emoji.name === normalReaction) {
+        msg.edit({embeds:[getArtEmbed(unit, 'normal')]});
+      }
+      if (r.emoji.name === awakenReaction) {
+        msg.edit({embeds:[getArtEmbed(unit, 'awaken')]});
+      }
+    });
+    collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  } catch (error) {
+    console.log(error)
+  }     
 };
 
 const sendAlt = async (unit, message) => {
   const filter = (reaction, user) => {
     return [normalReaction, awakenReaction].includes(reaction.emoji.name) && user.id === message.author.id;
   };
-  const msg = await message.channel.send({embeds:[getArtEmbed(unit, 'awaken')]});
-  await msg.react(normalReaction).catch(catchErr);
-  await msg.react(awakenReaction).catch(catchErr);
-  const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
-  collector.on('collect', r => {
-    if (r.emoji.name === normalReaction) {
-      msg.edit({embeds:[getArtEmbed(unit, 'normal')]});
-    }
-    if (r.emoji.name === awakenReaction) {
-      msg.edit({embeds:[getArtEmbed(unit, 'awaken')]});
-    }
-  });
-  collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  try {       
+    const msg = await message.channel.send({embeds:[getArtEmbed(unit, 'awaken')]});
+    await msg.react(normalReaction).catch(catchErr);
+    await msg.react(awakenReaction).catch(catchErr);
+    const collector = msg.createReactionCollector({ filter, time: reactionExpiry});
+    collector.on('collect', r => {
+      if (r.emoji.name === normalReaction) {
+        msg.edit({embeds:[getArtEmbed(unit, 'normal')]});
+      }
+      if (r.emoji.name === awakenReaction) {
+        msg.edit({embeds:[getArtEmbed(unit, 'awaken')]});
+      }
+    });
+    collector.on('end', collected => msg.reactions.removeAll().catch(catchErr));
+  } catch (error) {
+    console.log(error)
+  }     
 };
 
 const sendTitle = async (unit, message) => {
@@ -534,8 +564,102 @@ const filterCharByText = (origin, text, options) => {
     if (options.regexp) {
       for (let f in fields) {
         const field = char[fields[f]];
-        if (new RegExp(text).test(field.toLowerCase())) {
+        try {
+          if (new RegExp(text).test(field.toLowerCase())) {
+            return !exclude;
+          }
+        } catch (err) {
+          console.log(err.stack)
+          return null;
+        }
+      }
+    } else {
+      for (let f in fields) {
+        const field = char[fields[f]];
+        if (field.toLowerCase().indexOf(text) >= 0) {
           return !exclude;
+        }
+      }
+    }
+    return exclude;
+  });
+};
+
+
+const filterEquip = (origin, cond) => {
+  let lambda = null;
+  switch (cond) {
+    // Elements, most used so make one/two alphabets shortcut
+    case 'f':
+    case 'fi':
+    case 'fire':
+      lambda = char => char.Attribute === 'Fire'
+      break;
+    case 'w':
+    case 'wa':
+    case 'water':
+      lambda = char => char.Attribute === 'Water'
+      break;
+    case 'i':
+    case 'wi':
+    case 'wind':
+      lambda = char => char.Attribute === 'Wind'
+      break;
+    case 't':
+    case 'th':
+    case 'thunder':
+      lambda = char => char.Attribute === 'Thunder'
+      break;
+    case 'l':
+    case 'li':
+    case 'light':
+      lambda = char => char.Attribute === 'Light'
+      break;
+    case 'd':
+    case 'da':
+    case 'dark':
+      lambda = char => char.Attribute === 'Dark'
+      break;
+  }
+  // Rarity
+  const r = cond.match(/^(\d+)\*$/);
+  if (r != null) {
+    lambda = char => {
+      for (let i = 0; i < r[1].length; i++) {
+        if (parseInt(char['Rarity']) === parseInt(r[1].charAt(i))) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+
+  if (lambda == null) {
+    return null;
+  }
+
+  return origin.filter(function (char) {
+    return lambda(char);
+  });
+};
+
+const filterEquipByText = (origin, text, options) => {
+  return origin.filter(function (char) {
+    const exclude = !!options['exclude'];
+    const fields = []; /*options['fields'];*/
+    if (fields.length === 0) {
+      fields.push(...['WeaponSkill', 'AwakenLv3', 'AwakenLv5']);
+    }
+    if (options.regexp) {
+      for (let f in fields) {
+        const field = char[fields[f]];
+        try {
+          if (new RegExp(text).test(field.toLowerCase())) {
+            return !exclude;
+          }
+        } catch (err) {
+          console.log(err.stack)
+          return null;
         }
       }
     } else {
@@ -602,6 +726,8 @@ const extractTextFilterOption = (options, arg) => {
   }
   return false;
 };
+
+
 
 const guide = {
   name: 'guide',
@@ -753,7 +879,7 @@ const tracker = {
   description: 'Links Collection Tracker.',
   execute(message) {
     const tlDocLink = 'http://eliya-bot.herokuapp.com/';
-    return message.channel.send(`The collection tracker can be found below. Fill up both your units and weapons here for teambuiding advices: \n${tlDocLink}`);
+    return message.channel.send(`The collection tracker can be found below. Fill in both your units and weapons here for teambuilding advice: \n${tlDocLink}`);
   },
 };
 const character = {
@@ -764,28 +890,33 @@ const character = {
   aliases: ['c', 'char'],
   description: 'Lists information about the given character.',
   async execute(message, args) {
-    const chara = args.length ? args.join(' ').toLowerCase() : null;
-    if (chara.length < 2) {
-      return message.channel.send('Search too short please have a minimum of 2 letters!');
-    }
-    if (chara == 'malte') {
-      sendEquip(searchEquipByName(chara)[0], message);
-    } else {
+    var retry = setInterval(function(){
+      if (data.chars){
+        clearInterval(retry);
+        const chara = args.length ? args.join(' ').toLowerCase() : null;
+        if (chara.length < 2) {
+          return message.channel.send('Search too short please have a minimum of 2 letters!');
+        }
+        if (chara == 'malte') {
+          sendEquip(searchEquipByName(chara)[0], message);
+        } else {
 
-      var arrFound = searchCharByName(chara);
+          var arrFound = searchCharByName(chara);
 
-      if (arrFound.length === 0) {
-        return message.channel.send('No character found!');
+          if (arrFound.length === 0) {
+            return message.channel.send('No character found!');
+          }
+          if (arrFound.length > 30) {
+            return message.channel.send(arrFound.length + ' found! Please narrow your search');
+          }
+          if (arrFound.length === 1) {
+            sendMessage(arrFound[0], message);
+          } else {
+            sendList(arrFound, message, 'c');
+          }
+        }
       }
-      if (arrFound.length > 30) {
-        return message.channel.send(arrFound.length + ' found! Please narrow your search');
-      }
-      if (arrFound.length === 1) {
-        sendMessage(arrFound[0], message);
-      } else {
-        sendList(arrFound, message, 'c');
-      }
-    }
+    },10);
   },
 };
 
@@ -797,24 +928,29 @@ const equipment = {
   aliases: ['e', 'equip'],
   description: 'Lists information about the given equipment.',
   async execute(message, args) {
-    const chara = args.length ? args.join(' ').toLowerCase() : null;
-    if (chara.length < 2) {
-      return message.channel.send('Search too short please have a minimum of 2 letters!');
-    } else {
-      var arrFound = searchEquipByName(chara);
+    var retry = setInterval(function(){
+      if (data.equips){  
+        clearInterval(retry);  
+        const chara = args.length ? args.join(' ').toLowerCase() : null;
+        if (chara.length < 2) {
+          return message.channel.send('Search too short please have a minimum of 2 letters!');
+        } else {
+          var arrFound = searchEquipByName(chara);
 
-      if (arrFound.length === 0) {
-        return message.channel.send('No equipment found!');
+          if (arrFound.length === 0) {
+            return message.channel.send('No equipment found!');
+          }
+          if (arrFound.length > 30) {
+            return message.channel.send(arrFound.length + ' found! Please narrow your search');
+          }
+          if (arrFound.length === 1) {
+            sendEquip(arrFound[0], message);
+          } else {
+            sendList(arrFound, message, 'e');
+          }
+        }
       }
-      if (arrFound.length > 30) {
-        return message.channel.send(arrFound.length + ' found! Please narrow your search');
-      }
-      if (arrFound.length === 1) {
-        sendEquip(arrFound[0], message);
-      } else {
-        sendList(arrFound, message, 'e');
-      }
-    }
+    },10);
   },
 };
 
@@ -826,27 +962,31 @@ const race = {
   aliases: ['r'],
   description: 'Lists characters with the given race.',
   async execute(message, args) {
-    const race = args.length ? args.join(' ').toLowerCase() : null;
-    if (race.length < 2) {
-      return message.channel.send('Search too short please have a minimum of 2 letters!');
-    }
+    var retry = setInterval(function(){
+      if (data.chars){     
+        clearInterval(retry);        
+        const race = args.length ? args.join(' ').toLowerCase() : null;
+        if (race.length < 2) {
+          return message.channel.send('Search too short please have a minimum of 2 letters!');
+        }
 
-    var arrFound = data.chars.filter(function (item) {
-      return item.Race.toLowerCase().indexOf(race) !== -1;
-    });
+        var arrFound = data.chars.filter(function (item) {
+          return item.Race.toLowerCase().indexOf(race) !== -1;
+        });
 
-    if (arrFound.length === 0) {
-      return message.channel.send('No character found!');
-    }
-    if (arrFound.length > 40) {
-      return message.channel.send(arrFound.length + ' found! Please narrow your search');
-    }
-    if (arrFound.length === 1) {
-      sendMessage(arrFound[0], message);
-    } else {
-      sendList(arrFound, message, 'c');
-    }
-
+        if (arrFound.length === 0) {
+          return message.channel.send('No character found!');
+        }
+        if (arrFound.length > 40) {
+          return message.channel.send(arrFound.length + ' found! Please narrow your search');
+        }
+        if (arrFound.length === 1) {
+          sendMessage(arrFound[0], message);
+        } else {
+          sendList(arrFound, message, 'c');
+        }
+      }
+    },10);
   },
 };
 
@@ -858,28 +998,32 @@ const whois = {
   aliases: ['w', 'tn'],
   description: 'Show thumbnail of the character',
   async execute(message, args) {
-    const chara = args.length ? args.join(' ').toLowerCase() : null;
+    var retry = setInterval(function(){
+      if (data.chars){        
+        clearInterval(retry); 
+        const chara = args.length ? args.join(' ').toLowerCase() : null;
+        if (chara.length < 2) {
+          return message.channel.send('Search too short please have a minimum of 2 letters!');
+        }
+        if (chara == 'malte') {
+          sendEquip(searchEquipByName(chara)[0], message);
+        } else {
+          var arrFound = searchCharByName(chara);
 
-    if (chara.length < 2) {
-      return message.channel.send('Search too short please have a minimum of 2 letters!');
-    }
-    if (chara == 'malte') {
-      sendEquip(searchEquipByName(chara)[0], message);
-    } else {
-      var arrFound = searchCharByName(chara);
-
-      if (arrFound.length === 0) {
-        return message.channel.send('No character found!');
+          if (arrFound.length === 0) {
+            return message.channel.send('No character found!');
+          }
+          if (arrFound.length > 30) {
+            return message.channel.send(arrFound.length + ' found! Please narrow your search');
+          }
+          if (arrFound.length === 1) {
+            sendThumbnail(arrFound[0], message);
+          } else {
+            sendList(arrFound, message, 'w');
+          }
+        }
       }
-      if (arrFound.length > 30) {
-        return message.channel.send(arrFound.length + ' found! Please narrow your search');
-      }
-      if (arrFound.length === 1) {
-        sendThumbnail(arrFound[0], message);
-      } else {
-        sendList(arrFound, message, 'w');
-      }
-    }
+    },10);
   },
 };
 
@@ -891,23 +1035,28 @@ const art = {
   aliases: ['a'],
   description: 'Show full art of the character',
   async execute(message, args) {
-    const chara = args.length ? args.join(' ').toLowerCase() : null;
-    if (chara.length < 2) {
-      return message.channel.send('Search too short please have a minimum of 2 letters!');
-    }
-    var arrFound = searchCharByName(chara);
+    var retry = setInterval(function(){
+      if (data.chars){         
+        clearInterval(retry);
+        const chara = args.length ? args.join(' ').toLowerCase() : null;
+        if (chara.length < 2) {
+          return message.channel.send('Search too short please have a minimum of 2 letters!');
+        }
+        var arrFound = searchCharByName(chara);
 
-    if (arrFound.length === 0) {
-      return message.channel.send('No character found!');
-    }
-    if (arrFound.length > 30) {
-      return message.channel.send(arrFound.length + ' found! Please narrow your search');
-    }
-    if (arrFound.length === 1) {
-      sendArt(arrFound[0], message);
-    } else {
-      sendList(arrFound, message, 'art');
-    }
+        if (arrFound.length === 0) {
+          return message.channel.send('No character found!');
+        }
+        if (arrFound.length > 30) {
+          return message.channel.send(arrFound.length + ' found! Please narrow your search');
+        }
+        if (arrFound.length === 1) {
+          sendArt(arrFound[0], message);
+        } else {
+          sendList(arrFound, message, 'art');
+        }
+      }
+    },10);
   },
 };
 const alt = {
@@ -918,53 +1067,31 @@ const alt = {
   aliases: ['al'],
   description: 'Show alternate art of the character',
   async execute(message, args) {
-    const chara = args.length ? args.join(' ').toLowerCase() : null;
-    if (chara.length < 2) {
-      return message.channel.send('Search too short please have a minimum of 2 letters!');
-    }
-    var arrFound = searchCharByName(chara);
+    var retry = setInterval(function(){
+      if (data.chars){            
+        clearInterval(retry);        
+        const chara = args.length ? args.join(' ').toLowerCase() : null;
+        if (chara.length < 2) {
+          return message.channel.send('Search too short please have a minimum of 2 letters!');
+        }
+        var arrFound = searchCharByName(chara);
 
-    if (arrFound.length === 0) {
-      return message.channel.send('No character found!');
-    }
-    if (arrFound.length > 30) {
-      return message.channel.send(arrFound.length + ' found! Please narrow your search');
-    }
-    if (arrFound.length === 1) {
-      sendAlt(arrFound[0], message);
-    } else {
-      sendList(arrFound, message, 'alt');
-    }
+        if (arrFound.length === 0) {
+          return message.channel.send('No character found!');
+        }
+        if (arrFound.length > 30) {
+          return message.channel.send(arrFound.length + ' found! Please narrow your search');
+        }
+        if (arrFound.length === 1) {
+          sendAlt(arrFound[0], message);
+        } else {
+          sendList(arrFound, message, 'alt');
+        }
+      }
+    },10);
   },
 };
 
-const title = {
-  name: 'title',
-  group,
-  args: true,
-  usage: '<title>',
-  aliases: ['t'],
-  description: 'Show title',
-  async execute(message, args) {
-    const chara = args.length ? args.join(' ').toLowerCase() : null;
-    if (chara.length < 2) {
-      return message.channel.send('Search too short please have a minimum of 2 letters!');
-    }
-    var arrFound = searchTitle(chara);
-
-    if (arrFound.length === 0) {
-      return message.channel.send('No character found!');
-    }
-    if (arrFound.length > 30) {
-      return message.channel.send(arrFound.length + ' found! Please narrow your search');
-    }
-    if (arrFound.length === 1) {
-      sendTitle(arrFound[0], message);
-    } else {
-      sendList(arrFound, message, 't');
-    }
-  },
-};
 const update = {
   name: 'update',
   group,
@@ -992,46 +1119,107 @@ const filterCharacter = {
   aliases: ['f', 'fc'],
   description: 'Filter characters by conditions',
   async execute(message, args) {
-    let filtered = data.chars;
-    let textFilterOptions = {
-      fields: []
-    };
-    for (let i = 0; i < args.length; i++) {
-      const arg = args[i];
-      if (extractTextFilterOption(textFilterOptions, arg)) {
-        continue;
-      }
-      switch (arg) {
-        case '-t':
-        case '--text':
-          if (i === args.length - 1) {
-            return message.channel.send("Not enough argument for -t text search!");
+    var retry = setInterval(async function(){
+      if (data.chars){            
+        clearInterval(retry);        
+        let filtered = data.chars;
+        let textFilterOptions = {
+          fields: []
+        };
+        for (let i = 0; i < args.length; i++) {
+          const arg = args[i];
+          if (extractTextFilterOption(textFilterOptions, arg)) {
+            continue;
           }
-          i++;
-          filtered = filterCharByText(filtered, args[i].toLowerCase(), textFilterOptions);
-          break;
-        default:
-          const result = filterChar(filtered, args[i].toLowerCase());
-          if (result == null) {
-            filtered = filterCharByText(filtered, args[i].toLowerCase(), textFilterOptions);
-          } else {
-            filtered = result;
+          switch (arg) {
+            case '-t':
+            case '--text':
+              if (i === args.length - 1) {
+                return message.channel.send("Not enough argument for -t text search!");
+              }
+              i++;
+              filtered = filterCharByText(filtered, args[i].toLowerCase(), textFilterOptions);
+              break;
+            default:
+              const result = filterChar(filtered, args[i].toLowerCase());
+              if (result == null) {
+                filtered = filterCharByText(filtered, args[i].toLowerCase(), textFilterOptions);
+              } else {
+                filtered = result;
+              }
+              break;
           }
-          break;
-      }
-    }
+        }
 
-    if (filtered.length === 0) {
-      return message.channel.send('No character found!');
-    }
-    if (filtered.length > 30) {
-      return message.channel.send(filtered.length + ' found! Please narrow your search');
-    }
-    if (filtered.length === 1) {
-      await sendMessage(filtered[0], message);
-    } else {
-      await sendFastList(filtered, message, 'c');
-    }
+        if (filtered.length === 0) {
+          return message.channel.send('No character found!');
+        }
+        if (filtered.length > 30) {
+          return message.channel.send(filtered.length + ' found! Please narrow your search');
+        }
+        if (filtered.length === 1) {
+          await sendMessage(filtered[0], message);
+        } else {
+          await sendFastList(filtered, message, 'c');
+        }
+      }
+    },10);
+  },
+};
+
+const filterEquipment = {
+  name: 'filter-equipment',
+  group,
+  args: true,
+  usage: '<efilter conditions>',
+  aliases: ['ef', 'fe'],
+  description: 'Filter equipments by conditions',
+  async execute(message, args) {
+    var retry = setInterval(async function(){
+      if (data.equips){           
+        clearInterval(retry);        
+        let filtered = data.equips;
+        let textFilterOptions = {
+          fields: []
+        };
+        for (let i = 0; i < args.length; i++) {
+          const arg = args[i];
+          if (extractTextFilterOption(textFilterOptions, arg)) {
+            continue;
+          }
+          switch (arg) {
+            case '-t':
+            case '--text':
+              if (i === args.length - 1) {
+                return message.channel.send("Not enough argument for -t text search!");
+              }
+              i++;
+              filtered = filterEquipByText(filtered, args[i].toLowerCase(), textFilterOptions);
+              break;
+            default:
+              const result = filterEquip(filtered, args[i].toLowerCase());
+              if (result == null) {
+                filtered = filterEquipByText(filtered, args[i].toLowerCase(), textFilterOptions);
+              } else {
+                filtered = result;
+              }
+              break;
+          }
+        }
+
+        if (filtered.length === 0) {
+          return message.channel.send('No equipment found!');
+        }
+        if (filtered.length > 30) {
+          return message.channel.send(filtered.length + ' found! Please narrow your search');
+        }
+        if (filtered.length === 1) {
+          await sendMessage(filtered[0], message);
+        } else {
+          await sendFastList(filtered, message, 'e');
+        }
+      }
+    },10);
   },
 };
 
@@ -1215,7 +1403,7 @@ const sendTeam = async (team, msg) => {
     const score = team.voter_score + upvote.size - downvote.size
     const newVoters = new Set([...upvote, ...downvote, ...voters])
     const queryString = `UPDATE teams set  voters= '{${Array.from(newVoters)}}', voter_score = ${score} where id = '${team.id}'`
-    msg.reactions.removeAll()
+    msg.reactions.removeAll().catch(catchErr);
     // This may potentially fail? Only result would be the votes not getting counted
     DBOperation(queryString)
   });
@@ -1269,13 +1457,13 @@ const EditTeamList = async (datum, message, current, msg) => {
       EditTeamList(datum, message, current + 5, msg)
     }
     if (r.emoji.name === LEFT) {
-      msg.reactions.removeAll();
+      msg.reactions.removeAll().catch(catchErr);;
       EditTeamList(datum, message, current - 5, msg)
     }
     const num = datum.length < 5 ? datum.length : 5
     for (let i = 0; i < num; i++) {
       if (r.emoji.name === numberReactions[i]) {
-        msg.reactions.removeAll();
+        msg.reactions.removeAll().catch(catchErr);;
         sendTeam(datum[i + current], msg)
       }
     }
@@ -1283,11 +1471,11 @@ const EditTeamList = async (datum, message, current, msg) => {
 
   collector.on('end', () => {
     if (!acted) {
-      msg.reactions.removeAll()
+      msg.reactions.removeAll().catch(catchErr);
     }
   });
 
 };
 
 module.exports = [guide, tls, tracker, event, gacha, character, equipment,
-  race, whois, art, alt, update, filterCharacter, submit, team];
+  race, whois, art, alt, update, filterCharacter, filterEquipment, submit, team];

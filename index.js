@@ -152,6 +152,15 @@ app.get("/comp/:w", function (req, res) {
         }
       });
     }
+  },10)       
+});
+function sendimage(canvas,res){
+  var data = canvas.toDataURL();
+  data = data.replace(/^data:image\/png;base64,/, '');
+  var img = new Buffer.from(data, 'base64');
+  res.writeHead(200, {
+    'Content-Type': 'image/png',
+    'Content-Length': img.length
   });
 });
 app.post("/update", async (req, res) => {
@@ -188,7 +197,7 @@ io.on("connection", function (socket) {
       default:
         io.to(socket.id).emit("titles", data.titles);
     }
-  });
+  });*/
 
   socket.on("add url", function (list) {});
   socket.on("get url", function (id) {});
